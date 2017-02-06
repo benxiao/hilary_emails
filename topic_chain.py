@@ -1,6 +1,8 @@
 from gensim.matutils import hellinger
 import json
 
+from smart_copy import smart_copy
+
 # define a merge
 # when more than 1 topic_dist points to a particular topic_dist in the next time slice.
 
@@ -32,10 +34,9 @@ class DynamicTopic:
         d = self._dm.get_topic_keys(self.ts, self.ti)
         return sorted(d.items(), key=lambda x: -x[-1])[:n]
 
-
     def next(self):
         next_time_slice = self._time_slice + 1
-        if next_time_slice > len(self._dm._conn):
+        if next_time_slice > len(self._dm.table):
             return []
         related_future_topic_indexes = self._dm.get_outgoing_connections(self._time_slice, self._topic_n)
         return [DynamicTopic(self._dm, next_time_slice, i) for i in related_future_topic_indexes]
@@ -43,7 +44,7 @@ class DynamicTopic:
     def prev(self):
         prev_time_slice = self._time_slice-1
         if prev_time_slice < 0: return []
-        related_previous_topic_indexes = [i for i, t in enumerate(self._dm._conn[prev_time_slice]) if self._topic_n in t]
+        related_previous_topic_indexes = [i for i, t in enumerate(self._dm.table[prev_time_slice]) if self._topic_n in t]
         return [DynamicTopic(self._dm, prev_time_slice, i) for i in related_previous_topic_indexes]
 
     def __str__(self):
@@ -56,7 +57,18 @@ class DynamicTopic:
         common = set(dynamic_topics[0].top_words)
         for i in range(1, len(dynamic_topics)):
             common = common.intersection(set(dynamic_topics[i].top_words))
-        return list(common)[:n]
+
+        word_ranks = []
+        for w in common:
+            rank = 0
+            for dt in dynamic_topics:
+                rank += dt.top_words.index(w)
+            word_ranks.append((w, rank))
+
+        word_ranks = [(w, 0) if '_' in w else (w, r) for w, r in word_ranks] # move n-grams to the front
+        sorted_ranks = sorted(word_ranks, key=lambda x:x[1])
+        return [w for w, _ in sorted_ranks][:n]
+
 
 class TopicChain:
     """
@@ -76,7 +88,12 @@ class TopicChain:
     @property
     def table(self):
         # don't write to it # pretend it is read only
-        return self._conn
+        return smart_copy(self._conn)
+
+
+    @property
+    def shape(self):
+        return len(self.table)+1, len(self.table[0])
 
     @property
     def nkeys(self):
