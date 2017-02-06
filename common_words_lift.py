@@ -1,13 +1,12 @@
 import json
 from collections import Counter
-DATA_PATH = '../data/arXiv'
-
+DATA_PATH = '../data/hilary'
 
 inference_result = json.load(open('topic_inference.json'))
 top_words = []
-for i in range(17): # period
-    lst = json.load(open(DATA_PATH + '/processed/processed_{}.json'.format(i+2000)))
-    inference_result_at = inference_result[i]
+for i, m in ((x, y) for x in range(3) for y in range(4)):# period
+    lst = json.load(open(DATA_PATH + '/processed/processed_{}_{}.json'.format(2009+i, m)))
+    inference_result_at = inference_result[i*4+m]
     top_words_at = []
     for j in range(30): # num_topics
         word_doc_freq = Counter()
