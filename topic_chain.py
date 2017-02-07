@@ -239,12 +239,6 @@ class TopicChain:
             result.append(slice_result)
         return result
 
-    # def show_conns(self):
-    #     for i, slice in enumerate(self._conn):
-    #         line = '{}:'.format(i) + str(''.join(['{}:{}| '.format(i, t) for i, t in enumerate(slice)]))
-    #         print(line)
-    #         print(len(line) * '-')
-
     @staticmethod
     def compute_hellinger(dist01, dist02):
         """
@@ -277,7 +271,6 @@ class TopicChain:
             if len(outgoings) > max_outgoing:
                 outgoings = sorted(outgoings, key=lambda x: distance_table[i][x])[:max_outgoing]
             lst.append(outgoings)
-
         # restrict the number of incoming connections from the 'merge'
         for j in range(l):
             incoming_conns = [i for i, p in enumerate(lst) if j in p]
@@ -286,6 +279,7 @@ class TopicChain:
                 for i in conns_removed:
                     lst[i].remove(j)
         return lst
+
 
 if __name__ == '__main__':
     dm = TopicChain('topic_keys.json',

@@ -4,10 +4,9 @@ import json
 
 DATA_PATH = '../data/hilary'
 result = []
-for y in range(2009, 2012):
-    for m in range(4):
+for i, m in (i, m for i in range(3) for m in range(4)):
         topic_keys = []
-        model_path = DATA_PATH+'/mallet_files/enron_{}_{}_mallet_model'.format(y, m)
+        model_path = DATA_PATH+'/mallet_files/hilary_{}_{}_mallet_model'.format(2009+i, m)
         lda = LdaMallet.load(model_path)
         for i in range(30): # num of topics
             topic_keys.append({w:str(p) for w, p in lda.show_topic(i, num_words=100)})

@@ -7,11 +7,20 @@ class VisLineFormat:
     """
 
     def __init__(self, lines, labels, topic_freqs):
+        """
+        :param lines:
+        :param labels:
+        :param topic_freqs:
+        """
         self._lines = lines
         self._labels = labels
         self._freqs = topic_freqs
 
     def _line2json(self, at):
+        """
+        :param at:
+        :return:
+        """
         labels = self._labels
         topics = self._lines[at]
         lst = []
@@ -38,6 +47,10 @@ class VisLineFormat:
         return json.dumps(line)
 
     def to_json_lst(self):
+        """
+        :return:
+        """
+
         lst = []
         for i in range(len(self._lines)):
             json_str = self._line2json(i)

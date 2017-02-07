@@ -52,6 +52,13 @@ def predoc(text):
 
 
 def find_ngrams(lst_str, threshold=0.2, minimum=10):
+    """
+    discover n-grams from the corpus
+    :param lst_str: nouns
+    :param threshold:  ex occur(congressional_meeting) / occur(meeting) > threshold
+    :param minimum: minimum number of occurences in the corpus
+    :return:  a list of n-grams
+    """
     word_freq = Counter(lst_str)
     unique_words = word_freq.keys()
     n_grams = []
@@ -61,7 +68,7 @@ def find_ngrams(lst_str, threshold=0.2, minimum=10):
             while '_' in cur:
                 next_ = cur[(cur.find('_')+1):]
                 if (word_freq[cur] and # greater than 0
-                    (word_freq[next_] >= minimum and word_freq[cur] >= minimum) and# pass minimum check
+                    (word_freq[next_] >= minimum and word_freq[cur] >= minimum) and # pass minimum check
                     word_freq[cur] / (word_freq[cur] + word_freq[next_] >= threshold) # pass threshold check
                     ): # find n_gram
                     n_grams.append(cur)
