@@ -139,6 +139,7 @@ class TopicChain:
     @threshold.setter
     def threshold(self, new_value):
         """
+        setting the threshold and regenerating the connection table
         :param new_value:
         :return:
         """
@@ -147,35 +148,75 @@ class TopicChain:
 
     @property
     def max_outgoing(self):
+        """
+        :return: maxmimum allowed outgoing connections
+        """
         return self._max_outgoing
 
     @max_outgoing.setter
     def max_outgoing(self, new_value):
+        """
+        setting maximum allowed outgoing connections
+        :param new_value:
+        :return:
+        """
         self._max_outgoing = new_value
         self._conn = self._generate_conns_from_data()
 
     @property
     def max_incoming(self):
+        """
+        :return: maximum allowed incoming connections
+        """
         return self._max_incoming
 
     @max_incoming.setter
     def max_incoming(self, new_value):
+        """
+        setting maximum allowed incoming connections and regenerating the connection table
+        :param new_value:
+        :return:
+        """
         self._max_incoming = new_value
         self._conn = self._generate_conns_from_data()
 
     def get_topics_with_outgoing_connections(self, time_slice):
+        """
+        :param time_slice:
+        :return:
+        """
         return [i for i, x in enumerate(self._conn[time_slice]) if len(x)]
 
-    def get_outgoing_connections(self, time_slice, topic_n):
-        return self._conn[time_slice][topic_n]
+    def get_outgoing_connections(self, ts, ti):
+        """
+        :param ts:
+        :param ti:
+        :return:
+        """
+        return self._conn[ts][ti]
 
-    def get_topic_keys(self, time_slice, topic_n):
-        return self._data[time_slice][topic_n]
+    def get_topic_keys(self, ts, ti):
+        """
+        :param ts: time slice
+        :param ti: topic id
+        :return: a list of keywords for that topic
+        """
+        return self._data[ts][ti]
 
-    def get_dynamic_topic(self, time_slice, topic_n):
-        return DynamicTopic(self, time_slice, topic_n)
+    def get_dynamic_topic(self, ts, ti):
+        """
+
+        :param ts:
+        :param ti:
+        :return:
+        """
+        return DynamicTopic(self, ts, ti)
 
     def _generate_conns_from_data(self):
+        """
+        generate connection table with current configuration
+        :return: None
+        """
         result = []
         data = self._data
         for i in range(len(data) - 1):
@@ -221,6 +262,13 @@ class TopicChain:
 
     @staticmethod
     def get_edges_between_two_time_slices(distance_table, threshold, max_outgoing, max_incoming):
+        """
+        :param distance_table:
+        :param threshold:
+        :param max_outgoing:
+        :param max_incoming:
+        :return:
+        """
         lst = []
         l = len(distance_table)
         # find outgoing connections under the limit
