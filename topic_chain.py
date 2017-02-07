@@ -13,18 +13,21 @@ class DynamicTopic:
     """
     
     """
-    def __init__(self, dynamic_model, time_slice, topic_n):
+    def __init__(self, dynamic_model, ts, ti):
         self._dm = dynamic_model
-        self._time_slice = time_slice
-        self._topic_n = topic_n
+        self._ts = ts
+        self._ti = ti
 
     @property
     def ts(self):
-        return self._time_slice
+        return self._ts
 
     @property
     def ti(self):
-        return self._topic_n
+        """
+        :return: topic id
+        """
+        return self._ti
 
     @property
     def top_words(self):
@@ -35,25 +38,33 @@ class DynamicTopic:
         return sorted(d.items(), key=lambda x: -x[-1])[:n]
 
     def next(self):
-        next_time_slice = self._time_slice + 1
+        """
+        :return: connected dynamic topics in the next time slice
+        """
+        next_time_slice = self._ts + 1
         if next_time_slice > len(self._dm.table):
             return []
-        related_future_topic_indexes = self._dm.get_outgoing_connections(self._time_slice, self._topic_n)
+        related_future_topic_indexes = self._dm.get_outgoing_connections(self._ts, self._ti)
         return [DynamicTopic(self._dm, next_time_slice, i) for i in related_future_topic_indexes]
 
     def prev(self):
-        prev_time_slice = self._time_slice-1
+        prev_time_slice = self._ts - 1
         if prev_time_slice < 0: return []
-        related_previous_topic_indexes = [i for i, t in enumerate(self._dm.table[prev_time_slice]) if self._topic_n in t]
+        related_previous_topic_indexes = [i for i, t in enumerate(self._dm.table[prev_time_slice]) if self._ti in t]
         return [DynamicTopic(self._dm, prev_time_slice, i) for i in related_previous_topic_indexes]
 
     def __str__(self):
-        return 'DT:'+str((self._time_slice, self._topic_n))
+        return 'DT:'+str((self._ts, self._ti))
 
     __repr__ = __str__
 
     @classmethod
     def common_words(cls, dynamic_topics, n):
+        """
+        :param dynamic_topics:
+        :param n: number of words to be returned
+        :return: a list of common ranked common keywords with n-grams given priority
+        """
         common = set(dynamic_topics[0].top_words)
         for i in range(1, len(dynamic_topics)):
             common = common.intersection(set(dynamic_topics[i].top_words))
@@ -87,29 +98,50 @@ class TopicChain:
 
     @property
     def table(self):
-        # don't write to it # pretend it is read only
+        """
+        return a copy of the connection table
+        :return: in form of list of list of list of int
+        """
         return smart_copy(self._conn)
-
 
     @property
     def shape(self):
+        """
+        :return: (number of time slice, number of topics)
+        """
         return len(self.table)+1, len(self.table[0])
 
     @property
     def nkeys(self):
+        """
+        :return: n of keywords used for similarity test aka hellinger distance
+        """
         return self._nkeys
 
     @nkeys.setter
     def nkeys(self, new_value):
+        """
+        set the number of keywords will be used for similarity test
+        :param new_value:
+        :return:
+        """
         self._nkeys = new_value
         self._conn = self._generate_conns_from_data()
 
     @property
     def threshold(self):
+        """
+        :return: the threshold for the similarity test, the value below the threshold will be recongized as
+        a valid connection
+        """
         return self._threshold
 
     @threshold.setter
     def threshold(self, new_value):
+        """
+        :param new_value:
+        :return:
+        """
         self._threshold = new_value
         self._conn = self._generate_conns_from_data()
 
@@ -166,19 +198,20 @@ class TopicChain:
             result.append(slice_result)
         return result
 
-    def show_conns(self):
-        for i, slice in enumerate(self._conn):
-            line = '{}:'.format(i) + str(''.join(['{}:{}| '.format(i, t) for i, t in enumerate(slice)]))
-            print(line)
-            print(len(line) * '-')
-
-
-    # def get_conns(self):
-    #     return
-
+    # def show_conns(self):
+    #     for i, slice in enumerate(self._conn):
+    #         line = '{}:'.format(i) + str(''.join(['{}:{}| '.format(i, t) for i, t in enumerate(slice)]))
+    #         print(line)
+    #         print(len(line) * '-')
 
     @staticmethod
     def compute_hellinger(dist01, dist02):
+        """
+        compute hellinger distance between two multinomial distributions
+        :param dist01:
+        :param dist02:
+        :return:
+        """
         unique_words = set([x[1] for x in dist01] + [x[1] for x in dist02])
         dict_dist01 = {x[1]: x[0] for x in dist01}
         dict_dist02 = {x[1]: x[0] for x in dist02}
