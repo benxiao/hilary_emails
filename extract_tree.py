@@ -188,6 +188,7 @@ def get_forest(topic_chain):
 
     return forest
 
+
 def squeeze(tree):
     """
     squeeze nodes with only one child into supernodes

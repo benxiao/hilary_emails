@@ -3,6 +3,9 @@ from pandas import DataFrame
 import json
 
 
+"""
+Using pandas api to recongizing time stamps and separating the data in quarterly interval.
+"""
 DATA_PATH = '../data/hilary'
 lst = json.load(open(DATA_PATH+'/hilary.json'))
 df = DataFrame(lst, columns=['date', 'email'])
