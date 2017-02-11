@@ -1,8 +1,6 @@
 from gensim.matutils import hellinger
 import json
 
-from smart_copy import smart_copy
-
 # define a merge
 # when more than 1 topic_dist points to a particular topic_dist in the next time slice.
 
@@ -13,72 +11,32 @@ class DynamicTopic:
     """
     
     """
-    def __init__(self, dynamic_model, ts, ti):
+    def __init__(self, dynamic_model, time_slice, topic_n):
         self._dm = dynamic_model
-        self._ts = ts
-        self._ti = ti
-
-    @property
-    def ts(self):
-        return self._ts
-
-    @property
-    def ti(self):
-        """
-        :return: topic id
-        """
-        return self._ti
-
-    @property
-    def top_words(self):
-        return [x[0] for x in self.top_word_distribution(1000)]
-
-    def top_word_distribution(self, n):
-        d = self._dm.get_topic_keys(self.ts, self.ti)
-        return sorted(d.items(), key=lambda x: -x[-1])[:n]
+        self._time_slice = time_slice
+        self._topic_n = topic_n
 
     def next(self):
-        """
-        :return: connected dynamic topics in the next time slice
-        """
-        next_time_slice = self._ts + 1
-        if next_time_slice > len(self._dm.table):
+        next_time_slice = self._time_slice + 1
+        if next_time_slice >= len(self._dm._conn):
             return []
-        related_future_topic_indexes = self._dm.get_outgoing_connections(self._ts, self._ti)
+        related_future_topic_indexes = self._dm.get_outgoing_connections(self._time_slice, self._topic_n)
         return [DynamicTopic(self._dm, next_time_slice, i) for i in related_future_topic_indexes]
 
     def prev(self):
-        prev_time_slice = self._ts - 1
+        prev_time_slice = self._time_slice-1
         if prev_time_slice < 0: return []
-        related_previous_topic_indexes = [i for i, t in enumerate(self._dm.table[prev_time_slice]) if self._ti in t]
+        related_previous_topic_indexes = [i for i, t in enumerate(self._dm._conn[prev_time_slice]) if self._topic_n in t]
         return [DynamicTopic(self._dm, prev_time_slice, i) for i in related_previous_topic_indexes]
 
     def __str__(self):
-        return 'DT:'+str((self._ts, self._ti))
+        # printout = str(self._dm.get_topic_keys(self._time_slice, self._topic_n))
+        # if len(printout) > 200:
+        #     return printout[:200]+'...'
+        # return printout
+        return str((self._time_slice, self._topic_n))
 
     __repr__ = __str__
-
-    @classmethod
-    def common_words(cls, dynamic_topics, n):
-        """
-        :param dynamic_topics:
-        :param n: number of words to be returned
-        :return: a list of common ranked common keywords with n-grams given priority
-        """
-        common = set(dynamic_topics[0].top_words)
-        for i in range(1, len(dynamic_topics)):
-            common = common.intersection(set(dynamic_topics[i].top_words))
-
-        word_ranks = []
-        for w in common:
-            rank = 0
-            for dt in dynamic_topics:
-                rank += dt.top_words.index(w)
-            word_ranks.append((w, rank))
-
-        word_ranks = [(w, 0) if '_' in w else (w, r) for w, r in word_ranks] # move n-grams to the front
-        sorted_ranks = sorted(word_ranks, key=lambda x:x[1])
-        return [w for w, _ in sorted_ranks][:n]
 
 
 class TopicChain:
@@ -97,126 +55,54 @@ class TopicChain:
         self._conn = self._generate_conns_from_data()
 
     @property
-    def table(self):
-        """
-        return a copy of the connection table
-        :return: in form of list of list of list of int
-        """
-        return smart_copy(self._conn)
-
-    @property
-    def shape(self):
-        """
-        :return: (number of time slice, number of topics)
-        """
-        return len(self.table)+1, len(self.table[0])
-
-    @property
     def nkeys(self):
-        """
-        :return: n of keywords used for similarity test aka hellinger distance
-        """
         return self._nkeys
 
     @nkeys.setter
     def nkeys(self, new_value):
-        """
-        set the number of keywords will be used for similarity test
-        :param new_value:
-        :return:
-        """
         self._nkeys = new_value
         self._conn = self._generate_conns_from_data()
 
     @property
     def threshold(self):
-        """
-        :return: the threshold for the similarity test, the value below the threshold will be recongized as
-        a valid connection
-        """
         return self._threshold
 
     @threshold.setter
     def threshold(self, new_value):
-        """
-        setting the threshold and regenerating the connection table
-        :param new_value:
-        :return:
-        """
         self._threshold = new_value
         self._conn = self._generate_conns_from_data()
 
     @property
     def max_outgoing(self):
-        """
-        :return: maxmimum allowed outgoing connections
-        """
         return self._max_outgoing
 
     @max_outgoing.setter
     def max_outgoing(self, new_value):
-        """
-        setting maximum allowed outgoing connections
-        :param new_value:
-        :return:
-        """
         self._max_outgoing = new_value
         self._conn = self._generate_conns_from_data()
 
     @property
     def max_incoming(self):
-        """
-        :return: maximum allowed incoming connections
-        """
         return self._max_incoming
 
     @max_incoming.setter
     def max_incoming(self, new_value):
-        """
-        setting maximum allowed incoming connections and regenerating the connection table
-        :param new_value:
-        :return:
-        """
         self._max_incoming = new_value
         self._conn = self._generate_conns_from_data()
 
     def get_topics_with_outgoing_connections(self, time_slice):
-        """
-        :param time_slice:
-        :return:
-        """
         return [i for i, x in enumerate(self._conn[time_slice]) if len(x)]
 
-    def get_outgoing_connections(self, ts, ti):
-        """
-        :param ts:
-        :param ti:
-        :return:
-        """
-        return self._conn[ts][ti]
+    def get_outgoing_connections(self, time_slice, topic_n):
+        return self._conn[time_slice][topic_n]
 
-    def get_topic_keys(self, ts, ti):
-        """
-        :param ts: time slice
-        :param ti: topic id
-        :return: a list of keywords for that topic
-        """
-        return self._data[ts][ti]
+    def get_topic_keys(self, time_slice, topic_n):
+        return self._data[time_slice][topic_n]
 
-    def get_dynamic_topic(self, ts, ti):
-        """
-
-        :param ts:
-        :param ti:
-        :return:
-        """
-        return DynamicTopic(self, ts, ti)
+    def get_dynamic_topic(self, time_slice, topic_n):
+        return DynamicTopic(self, time_slice, topic_n)
 
     def _generate_conns_from_data(self):
-        """
-        generate connection table with current configuration
-        :return: None
-        """
         result = []
         data = self._data
         for i in range(len(data) - 1):
@@ -239,14 +125,19 @@ class TopicChain:
             result.append(slice_result)
         return result
 
+    def show_conns(self):
+        for i, slice in enumerate(self._conn):
+            line = '{}:'.format(i) + str(''.join(['{}:{}| '.format(i, t) for i, t in enumerate(slice)]))
+            print(line)
+            print(len(line) * '-')
+
+
+    # def get_conns(self):
+    #     return
+
+
     @staticmethod
     def compute_hellinger(dist01, dist02):
-        """
-        compute hellinger distance between two multinomial distributions
-        :param dist01:
-        :param dist02:
-        :return:
-        """
         unique_words = set([x[1] for x in dist01] + [x[1] for x in dist02])
         dict_dist01 = {x[1]: x[0] for x in dist01}
         dict_dist02 = {x[1]: x[0] for x in dist02}
@@ -256,13 +147,6 @@ class TopicChain:
 
     @staticmethod
     def get_edges_between_two_time_slices(distance_table, threshold, max_outgoing, max_incoming):
-        """
-        :param distance_table:
-        :param threshold:
-        :param max_outgoing:
-        :param max_incoming:
-        :return:
-        """
         lst = []
         l = len(distance_table)
         # find outgoing connections under the limit
@@ -271,6 +155,7 @@ class TopicChain:
             if len(outgoings) > max_outgoing:
                 outgoings = sorted(outgoings, key=lambda x: distance_table[i][x])[:max_outgoing]
             lst.append(outgoings)
+
         # restrict the number of incoming connections from the 'merge'
         for j in range(l):
             incoming_conns = [i for i, p in enumerate(lst) if j in p]
@@ -280,7 +165,6 @@ class TopicChain:
                     lst[i].remove(j)
         return lst
 
-
 if __name__ == '__main__':
     dm = TopicChain('topic_keys.json',
                     threshold=0.35,
@@ -288,3 +172,17 @@ if __name__ == '__main__':
                     max_outgoing=1
                     )
 
+    for slice in dm._conn:
+        print(slice)
+    # print(dm.get_topics_with_outgoing_connections(0))
+    # print(dm.get_outgoing_connections(0, 2))
+    # print(dm.get_topic_keys(0, 14))
+    # print(dm.get_topic_keys(1, 0))
+    # print(dm._conn)
+    # dm.threshold = 0.4
+    # print("*" * 200)
+    # print(dm._conn)
+    # print(dm.get_dynamic_topic(0,0))
+    # print(dm.get_dynamic_topic(0,0).next())
+    # dm.max_outgoing = 1
+    # print(dm._conn)
